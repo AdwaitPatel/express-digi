@@ -1,5 +1,7 @@
 import express from "express";
 import "dotenv/config";
+import logger from "./logger.js";
+import morgan from "morgan";
 
 const app = express();
 
@@ -7,6 +9,26 @@ const port = process.env.PORT || 3000;
 
 // accepts data in json format
 app.use(express.json());
+
+const morganFormat = ":method :url :status :response-time ms";
+
+// middleware
+app.use(
+    morgan(morganFormat, {
+        stream: {
+            write: (message) => {
+                const logObject = {
+                    method: message.split(" ")[0],
+                    url: message.split(" ")[1],
+                    status: message.split(" ")[2],
+                    responseTime: message.split(" ")[3],
+                };
+                logger.info(JSON.stringify(logObject));
+            },
+        },
+    })
+);
+
 
 let teaData = [];
 let nextId = 1;
@@ -53,6 +75,7 @@ app.get("/", (req, res) => {
 // post request
 // add a new tea
 app.post("/teas", (req, res) => {
+    logger.info("A POST request is made to add a new tea")
     const { name, price } = req.body;
     const newTea = {
         id: nextId++,
@@ -72,6 +95,7 @@ app.get("/teas", (req, res) => {
 app.get("/teas/:id", (req, res) => {
     const tea = teaData.find((t) => t.id === parseInt(req.params.id));
     if (!tea) {
+        logger.error("No tea found with this id!");
         return res.status(404).send("Tea not found");
     }
     res.status(200).send(tea);
@@ -83,6 +107,7 @@ app.put("/teas/:id", (req, res) => {
     const tea = teaData.find((t) => t.id === teaId);
 
     if (!tea) {
+        logger.error("No tea found with this id!");
         return res.status(404).send("Tea not found");
     }
 
@@ -100,6 +125,7 @@ app.delete("/teas/:id", (req, res) => {
     const index = teaData.findIndex((t) => t.id === teaId);
 
     if (index === -1) {
+        logger.error("No tea found with this id!");
         return res.status(404).send(`No tea found with id ${teaId}`);
     }
     const teaName = teaData[index].name;
